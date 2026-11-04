@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Desk">
+<meta name="theme-color" content="#0f141a">
+<title>Desk Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;500;600&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Landscape trading desk: left = clock, next meeting, focus; right = XAUUSD chart, FX sessions, hourly weather */
+:root{
+  --bg:#0f141a; --panel:#161d26; --line:#253140; --fg:#e8ecf1; --muted:#8693a3;
+  --accent:#f0a93b; --open:#4fc28b; --warn:#ef6b5b; --closed:#33404f;
+  --syd:#6c8fd8; --tok:#c779c2; --lon:#f0a93b; --ny:#4fc2b8;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:14px var(--body);font-variant-numeric:tabular-nums;
+  padding:max(8px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+  -webkit-user-select:none;user-select:none;overflow:hidden;-webkit-text-size-adjust:100%}
+.app{height:100%;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.35fr);gap:12px}
+.col{display:grid;gap:8px;min-height:0;min-width:0}
+.left{grid-template-rows:auto auto 1fr}
+.right{grid-template-rows:minmax(0,1fr) auto auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0;min-height:0}
+.label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.big{font-family:var(--display)}
+
+/* Clock + weather now */
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.time{font-family:var(--display);font-weight:300;font-size:clamp(44px,17vh,110px);line-height:.85}
+.time small{font-size:.34em;color:var(--muted);font-weight:500;margin-left:3px}
+.date{font-family:var(--display);font-size:clamp(15px,4.6vh,22px);font-weight:500;margin-top:4px}
+.date b{color:var(--accent);font-weight:500}
+.now{text-align:right;display:grid;justify-items:end;gap:1px}
+.now .t{display:flex;align-items:center;gap:4px;font-family:var(--display);font-size:clamp(26px,9vh,44px);font-weight:500;line-height:1}
+.now .t svg{width:.8em;height:.8em}
+.now .s{font-size:11px;color:var(--muted)}
+
+/* Meeting */
+.meet .row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.meet .cd{font-family:var(--display);font-size:clamp(24px,8vh,38px);font-weight:600;line-height:1;color:var(--fg)}
+.meet .cd.soon{color:var(--accent)} .meet .cd.urgent{color:var(--warn)}
+.meet .ttl{font-weight:600;font-size:15px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meet .who,.meet .cur{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meet .cur{color:var(--open);margin-top:2px}
+.gear{background:none;border:0;color:var(--muted);font:600 11px var(--body);padding:2px 4px;cursor:pointer}
+
+/* Focus */
+.focus{display:flex;flex-direction:column;justify-content:space-between;gap:6px}
+.focus input{width:100%;background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--fg);font:600 14px var(--body);padding:3px 0;outline:none;-webkit-user-select:text;user-select:text}
+.focus input:focus{border-color:var(--accent)}
+.elapsed{font-family:var(--display);font-size:clamp(30px,11vh,54px);font-weight:500;line-height:1}
+.elapsed.run{color:var(--accent)}
+.frow{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.btns{display:flex;gap:6px}
+button.b{font:600 13px var(--body);color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+button.b.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.fmeta{font-size:11px;color:var(--muted)}
+
+/* Chart */
+.chart{padding:0;overflow:hidden;position:relative}
+.chart .tradingview-widget-container,.chart .tradingview-widget-container__widget{height:100%;width:100%}
+
+/* Sessions */
+.sess .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.hot{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.chip.on{color:var(--open);border-color:var(--open)}
+.rail{position:relative}
+.srow{display:grid;grid-template-columns:66px minmax(0,1fr) 92px;align-items:center;gap:6px;height:16px}
+.srow .nm{font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px}
+.srow .cd{font-size:12px;color:var(--muted);text-align:right}
+.srow .cd.open{color:var(--open)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--closed)}
+.dot.open{background:var(--open)}
+.track{position:relative;height:5px;background:var(--line);border-radius:3px}
+.seg{position:absolute;top:0;height:100%;border-radius:3px;opacity:.4}
+.seg.live{opacity:1}
+.ov{position:absolute;left:72px;right:98px;top:-2px;bottom:-2px;pointer-events:none}
+.mark{position:absolute;top:0;bottom:0;width:2px;border-radius:1px}
+.mark.nowl{background:var(--fg)}
+.mark.close{background:var(--warn);opacity:.6;width:1px}
+
+/* Hourly weather */
+.hours{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:2px;text-align:center}
+.h .hr{font-size:11px;color:var(--muted)}
+.h svg{width:20px;height:20px;display:block;margin:1px auto}
+.h .tp{font-family:var(--display);font-size:17px;font-weight:500;line-height:1}
+.h .rp{font-size:10px;color:var(--syd);min-height:12px}
+.h.cur .hr{color:var(--accent)}
+
+/* Settings sheet */
+.sheet{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 85%,transparent);display:grid;place-items:center;padding:20px;z-index:5}
+.sheet .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;width:min(520px,100%);display:grid;gap:10px}
+.sheet input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--fg);font:13px var(--body);padding:9px;-webkit-user-select:text;user-select:text}
+.sheet p{margin:0;font-size:12px;color:var(--muted);line-height:1.4}
+
+.rotate{display:none}
+@media (orientation:portrait){
+  .app{display:none}
+  .rotate{display:grid;place-items:center;height:100%;text-align:center;gap:6px;font-family:var(--display);font-size:24px;color:var(--muted)}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="rotate"><div>Turn the phone sideways<br><span style="font-size:14px">Desk Panel is built for landscape</span></div></div>
+
+<main class="app">
+  <section class="col left">
+    <div class="head">
+      <div>
+        <div class="time" id="time">--:--<small>--</small></div>
+        <div class="date" id="date">&nbsp;</div>
+      </div>
+      <div class="now" id="wnow"><div class="label">Madrid</div><div class="t">--°</div><div class="s">Loading weather…</div></div>
+    </div>
+
+    <div class="panel meet" id="meet">
+      <div class="row1"><span class="label" id="mlabel">Next meeting</span><button class="gear" id="gear" aria-label="Calendar settings">Calendar ⋯</button></div>
+      <div class="cd" id="mcd">—</div>
+      <div class="ttl" id="mttl">Connect your work calendar</div>
+      <div class="who" id="mwho">Tap “Calendar ⋯” to add your calendar feed</div>
+      <div class="cur" id="mcur" hidden></div>
+    </div>
+
+    <div class="panel focus">
+      <div>
+        <div class="label" id="flabel">Focus time</div>
+        <input id="task" placeholder="What task are you focusing on?" maxlength="60" autocomplete="off">
+      </div>
+      <div class="frow">
+        <div>
+          <div class="elapsed" id="elapsed">0:00:00</div>
+          <div class="fmeta" id="fmeta">Today: 0m focused</div>
+        </div>
+        <div class="btns">
+          <button class="b primary" id="fgo">Start</button>
+          <button class="b" id="fstop">Finish</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="col right">
+    <div class="panel chart">
+      <div class="tradingview-widget-container">
+        <div class="tradingview-widget-container__widget"></div>
+        <script src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {
+          "autosize": true,
+          "symbol": "OANDA:XAUUSD",
+          "interval": "15",
+          "timezone": "Europe/Madrid",
+          "theme": "dark",
+          "style": "1",
+          "locale": "en",
+          "backgroundColor": "#161d26",
+          "gridColor": "rgba(37,49,64,0.6)",
+          "hide_top_toolbar": true,
+          "hide_side_toolbar": true,
+          "hide_legend": false,
+          "allow_symbol_change": false,
+          "save_image": false,
+          "calendar": false,
+          "withdateranges": false,
+          "support_host": "https://www.tradingview.com"
+        }
+        </script>
+      </div>
+    </div>
+
+    <div class="panel sess">
+      <div class="top"><span class="label">FX sessions · Madrid time</span><span class="chip" id="phase">…</span></div>
+      <div class="rail" id="rail"></div>
+    </div>
+
+    <div class="panel"><div class="hours" id="hours"></div></div>
+  </section>
+</main>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="box">
+    <div class="label">Work calendar feed</div>
+    <input id="calurl" placeholder="https://script.google.com/macros/s/…/exec" inputmode="url" autocomplete="off">
+    <p>Paste the link of your calendar feed. It is saved only on this phone, not in the page file.</p>
+    <div class="btns"><button class="b primary" id="calsave">Save</button><button class="b" id="calcancel">Cancel</button></div>
+  </div>
+</div>
+
+<script>
+const HOME = 'Europe/Madrid';
+const LAT = 40.4168, LON = -3.7038;
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+const store = {
+  get(k,d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ---------- time helpers ---------- */
+function parts(tz,d){
+  const o={};
+  new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour12:false,weekday:'short',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})
+    .formatToParts(d).forEach(p=>o[p.type]=p.value);
+  o.h=+o.hour%24; o.m=+o.minute; o.s=+o.second; return o;
+}
+function offsetMin(tz,d){ const p=parts(tz,d); return Math.round((Date.UTC(+p.year,+p.month-1,+p.day,p.h,p.m,p.s)-d.getTime())/60000); }
+function dur(min){ min=Math.max(0,Math.round(min)); const h=Math.floor(min/60), m=min%60; return h ? `${h}h ${pad(m)}m` : `${m} min`; }
+function hm(date){ return new Intl.DateTimeFormat('en-GB',{timeZone:HOME,hour:'2-digit',minute:'2-digit',hour12:false}).format(date); }
+
+/* ---------- clock ---------- */
+function clock(d){
+  const p=parts(HOME,d);
+  $('time').innerHTML=`${pad(p.h)}:${pad(p.m)}<small>${pad(p.s)}</small>`;
+  const f=new Intl.DateTimeFormat('en-GB',{timeZone:HOME,weekday:'long',day:'numeric',month:'long'}).formatToParts(d);
+  $('date').innerHTML=`<b>${f.find(x=>x.type==='weekday').value}</b> ${f.filter(x=>x.type==='day'||x.type==='month'||x.type==='literal').map(x=>x.value).join('').replace(/^,?\s*/,'')}`;
+}
+
+/* ---------- FX sessions ---------- */
+const SESS=[
+  {n:'Sydney',tz:'Australia/Sydney',s:8,e:17,c:'var(--syd)'},
+  {n:'Tokyo',tz:'Asia/Tokyo',s:9,e:18,c:'var(--tok)'},
+  {n:'London',tz:'Europe/London',s:8,e:17,c:'var(--lon)'},
+  {n:'New York',tz:'America/New_York',s:8,e:17,c:'var(--ny)'}
+];
+SESS.forEach((s,i)=>{
+  const r=document.createElement('div'); r.className='srow';
+  r.innerHTML=`<div class="nm"><span class="dot" id="sd${i}"></span>${s.n}</div><div class="track" id="st${i}"></div><div class="cd" id="sc${i}"></div>`;
+  $('rail').appendChild(r);
+});
+const ov=document.createElement('div'); ov.className='ov';
+ov.innerHTML='<div class="mark close" id="mclose" title="Daily close 17:00 New York"></div><div class="mark nowl" id="mnow"></div>';
+$('rail').appendChild(ov);
+
+function fxWeekend(d){ const day=d.getUTCDay(), h=d.getUTCHours(); return day===6||(day===5&&h>=22)||(day===0&&h<22); }
+function sessions(d){
+  const ph=parts(HOME,d), offH=offsetMin(HOME,d), nowH=ph.h+ph.m/60;
+  $('mnow').style.left=`calc(${nowH/24*100}% - 1px)`;
+  const closeH=((17+(offH-offsetMin('America/New_York',d))/60)%24+24)%24;
+  $('mclose').style.left=`${closeH/24*100}%`;
+  const wk=fxWeekend(d), open=[]; let next=null;
+  SESS.forEach((s,i)=>{
+    const tp=parts(s.tz,d), local=tp.h+tp.m/60+tp.s/3600;
+    const weekday=!['Sat','Sun'].includes(tp.weekday);
+    const isOpen=!wk&&weekday&&local>=s.s&&local<s.e;
+    if(isOpen) open.push(s.n);
+    $('sd'+i).className='dot'+(isOpen?' open':'');
+    const cd=$('sc'+i);
+    if(isOpen){ cd.className='cd open'; cd.textContent='closes '+dur((s.e-local)*60); }
+    else{
+      const toOpen=(local<s.s?s.s-local:24-local+s.s)*60;
+      cd.className='cd'; cd.textContent=wk?'weekend':'opens '+dur(toOpen);
+      if(!wk&&(!next||toOpen<next.m)) next={n:s.n,m:toOpen};
+    }
+    const t=$('st'+i); t.innerHTML='';
+    const start=((s.s+(offH-offsetMin(s.tz,d))/60)%24+24)%24, len=s.e-s.s;
+    (start+len>24?[[start,24-start],[0,start+len-24]]:[[start,len]]).forEach(([a,l])=>{
+      const g=document.createElement('div'); g.className='seg'+(isOpen?' live':'');
+      g.style.cssText=`left:${a/24*100}%;width:${l/24*100}%;background:${s.c}`; t.appendChild(g);
+    });
+  });
+  const ch=$('phase');
+  if(wk){ ch.className='chip'; ch.textContent='FX weekend · closed'; }
+  else if(open.includes('London')&&open.includes('New York')){ ch.className='chip hot'; ch.textContent='London–NY overlap'; }
+  else if(open.length){ ch.className='chip on'; ch.textContent=open.join(' + ')+(next?` · ${next.n} in ${dur(next.m)}`:''); }
+  else{ ch.className='chip'; ch.textContent=next?`Quiet · ${next.n} in ${dur(next.m)}`:'Quiet'; }
+}
+
+/* ---------- weather (Open-Meteo, no key) ---------- */
+const ICON={
+  sun:'<svg viewBox="0 0 24 24" fill="none" stroke="#f0c04a" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5" fill="#f0c04a"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>',
+  moon:'<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="#c9d3df"/></svg>',
+  part:'<svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="4" fill="#f0c04a"/><path d="M8 19h9a3.5 3.5 0 0 0 .3-7 5 5 0 0 0-9.6 1.5A2.8 2.8 0 0 0 8 19z" fill="#aab6c4"/></svg>',
+  cloud:'<svg viewBox="0 0 24 24"><path d="M7 19h10a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.6A3.2 3.2 0 0 0 7 19z" fill="#8f9cab"/></svg>',
+  fog:'<svg viewBox="0 0 24 24" stroke="#8f9cab" stroke-width="2" stroke-linecap="round"><path d="M4 9h16M6 13h12M4 17h16"/></svg>',
+  rain:'<svg viewBox="0 0 24 24"><path d="M7 15h10a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.6A3.2 3.2 0 0 0 7 15z" fill="#8f9cab"/><path d="M9 17.5l-1 3M13 17.5l-1 3M17 17.5l-1 3" stroke="#6c8fd8" stroke-width="2" stroke-linecap="round"/></svg>',
+  snow:'<svg viewBox="0 0 24 24"><path d="M7 15h10a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.6A3.2 3.2 0 0 0 7 15z" fill="#8f9cab"/><g fill="#e8ecf1"><circle cx="9" cy="19" r="1.3"/><circle cx="13" cy="20.5" r="1.3"/><circle cx="16.5" cy="18.5" r="1.3"/></g></svg>',
+  storm:'<svg viewBox="0 0 24 24"><path d="M7 14h10a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.6A3.2 3.2 0 0 0 7 14z" fill="#76828f"/><path d="M12.5 14l-2.5 4h3l-2 4" fill="none" stroke="#f0c04a" stroke-width="2" stroke-linejoin="round"/></svg>'
+};
+function wmo(c,day){
+  if(c===0) return [day?'sun':'moon','Clear'];
+  if(c<=2) return [day?'part':'moon', c===1?'Mostly clear':'Partly cloudy'];
+  if(c===3) return ['cloud','Overcast'];
+  if(c===45||c===48) return ['fog','Fog'];
+  if(c>=95) return ['storm','Thunderstorm'];
+  if((c>=71&&c<=77)||c===85||c===86) return ['snow','Snow'];
+  if(c>=51&&c<=57) return ['rain','Drizzle'];
+  return ['rain','Rain'];
+}
+async function weather(){
+  try{
+    const u=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m,is_day&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FMadrid&forecast_days=2`;
+    const r=await fetch(u); if(!r.ok) throw 0; const w=await r.json();
+    const c=w.current, [ic,txt]=wmo(c.weather_code,c.is_day);
+    $('wnow').innerHTML=`<div class="label">Madrid</div><div class="t">${ICON[ic]}${Math.round(c.temperature_2m)}°</div>
+      <div class="s">${txt} · feels ${Math.round(c.apparent_temperature)}°</div>
+      <div class="s">H ${Math.round(w.daily.temperature_2m_max[0])}° L ${Math.round(w.daily.temperature_2m_min[0])}° · wind ${Math.round(c.wind_speed_10m)} km/h</div>`;
+    const nowKey=c.time.slice(0,13);
+    let i=w.hourly.time.findIndex(t=>t.slice(0,13)===nowKey); if(i<0) i=0;
+    $('hours').innerHTML=w.hourly.time.slice(i,i+12).map((t,k)=>{
+      const j=i+k, [hi]=wmo(w.hourly.weather_code[j],w.hourly.is_day[j]), rp=w.hourly.precipitation_probability[j];
+      return `<div class="h${k===0?' cur':''}"><div class="hr">${k===0?'Now':t.slice(11,13)}</div>${ICON[hi]}<div class="tp">${Math.round(w.hourly.temperature_2m[j])}°</div><div class="rp">${rp>=10?rp+'%':''}</div></div>`;
+    }).join('');
+  }catch(e){
+    $('wnow').querySelector('.s').textContent='Weather unavailable · retrying';
+  }
+}
+
+/* ---------- calendar ---------- */
+let events=[], calErr='';
+async function loadCal(){
+  const url=store.get('calUrl','');
+  if(!url){ events=[]; calErr='nourl'; return renderMeet(); }
+  try{
+    const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw 0;
+    const j=await r.json();
+    events=(j.events||[]).map(e=>({...e,s:new Date(e.start),e:new Date(e.end)})).sort((a,b)=>a.s-b.s);
+    calErr='';
+  }catch(e){ calErr='fail'; }
+  renderMeet();
+}
+function renderMeet(){
+  const now=new Date();
+  const cd=$('mcd'), cur=$('mcur');
+  if(calErr==='nourl'){ return; }
+  if(calErr==='fail'&&!events.length){ cd.textContent='—'; cd.className='cd'; $('mttl').textContent='Calendar not reachable'; $('mwho').textContent='Check the feed link under “Calendar ⋯”'; return; }
+  const live=events.filter(e=>e.e>now);
+  const current=live.find(e=>e.s<=now), next=live.find(e=>e.s>now);
+  if(current){ cur.hidden=false; cur.textContent=`Now: ${current.title} · ends in ${dur((current.e-now)/60000)}`; } else cur.hidden=true;
+  if(!next){ $('mlabel').textContent='Next meeting'; cd.textContent='Free'; cd.className='cd'; $('mttl').textContent='No more meetings in the next 24h'; $('mwho').textContent=''; return; }
+  const mins=(next.s-now)/60000;
+  $('mlabel').textContent=`Next meeting · ${hm(next.s)}–${hm(next.e)}`;
+  cd.textContent=mins<1?'Starting now':'in '+dur(mins);
+  cd.className='cd'+(mins<=5?' urgent':mins<=15?' soon':'');
+  $('mttl').textContent=next.title||'(No title)';
+  const w=(next.with||[]).filter(Boolean);
+  $('mwho').textContent=w.length?'with '+(w.length>3?w.slice(0,3).join(', ')+` +${w.length-3}`:w.join(', ')):(next.location?next.location:'No other attendees');
+}
+$('gear').onclick=()=>{ $('calurl').value=store.get('calUrl',''); $('sheet').hidden=false; };
+$('calcancel').onclick=()=>{ $('sheet').hidden=true; };
+$('calsave').onclick=()=>{ store.set('calUrl',$('calurl').value.trim()); $('sheet').hidden=true; loadCal(); };
+
+/* ---------- focus timer (counts up) ---------- */
+const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:HOME}).format(new Date());
+let F=store.get('focus',{running:false,startAt:0,acc:0,task:''});
+let log=store.get('focusLog',{day:today(),ms:0,n:0});
+if(log.day!==today()) log={day:today(),ms:0,n:0};
+$('task').value=F.task||'';
+function elapsedMs(){ return F.acc+(F.running?Date.now()-F.startAt:0); }
+function renderFocus(){
+  const s=Math.floor(elapsedMs()/1000);
+  $('elapsed').textContent=`${Math.floor(s/3600)}:${pad(Math.floor(s/60)%60)}:${pad(s%60)}`;
+  $('elapsed').className='elapsed'+(F.running?' run':'');
+  $('fgo').textContent=F.running?'Pause':(F.acc>0?'Resume':'Start');
+  const t=$('task').value.trim();
+  $('flabel').textContent=F.running?(t?'Focus time · '+t:'Focus time'):(F.acc>0?'Paused':'Focus time');
+  const tm=Math.round((log.ms+(log.day===today()?0:0))/60000);
+  $('fmeta').textContent=`Today: ${dur(tm)} focused · ${log.n} task${log.n===1?'':'s'}`;
+}
+$('task').oninput=()=>{ F.task=$('task').value; store.set('focus',F); renderFocus(); };
+$('fgo').onclick=()=>{
+  if(F.running){ F.acc+=Date.now()-F.startAt; F.running=false; }
+  else{ F.running=true; F.startAt=Date.now(); $('task').blur(); }
+  store.set('focus',F); renderFocus(); wake();
+};
+$('fstop').onclick=()=>{
+  const ms=elapsedMs(); if(ms<1000) return;
+  if(log.day!==today()) log={day:today(),ms:0,n:0};
+  log.ms+=ms; log.n++; store.set('focusLog',log);
+  F={running:false,startAt:0,acc:0,task:''}; $('task').value=''; store.set('focus',F); renderFocus();
+};
+
+/* ---------- keep screen on ---------- */
+let lock=null;
+async function wake(){ try{ if('wakeLock' in navigator&&!lock){ lock=await navigator.wakeLock.request('screen'); lock.addEventListener('release',()=>lock=null); } }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ wake(); weather(); loadCal(); } });
+document.addEventListener('touchend',wake,{once:true});
+
+/* ---------- loops ---------- */
+function tick(){ const d=new Date(); clock(d); renderFocus(); }
+let lastMin=-1;
+function minute(){ const d=new Date(); if(d.getMinutes()===lastMin) return; lastMin=d.getMinutes(); sessions(d); renderMeet(); }
+tick(); minute(); weather(); loadCal(); wake();
+setInterval(tick,1000); setInterval(minute,5000);
+setInterval(weather,15*60*1000); setInterval(loadCal,5*60*1000);
+</script>
+</body>
+</html>
